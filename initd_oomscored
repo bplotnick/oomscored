@@ -1,0 +1,146 @@
+#!/bin/bash
+#
+# Start/Stop the OOM Score Daemon
+#
+# oomscored	OOM Score Daemon
+# chkconfig:	- 14 86
+# description:	Service to automatically set oom_score_adj for processes on a system
+#
+# processname: oomscored
+# pidfile: /var/run/oomscored.pid
+#
+### BEGIN INIT INFO
+# Provides:		oomscored
+# Required-Start:	$local_fs $remote_fs $syslog
+# Required-Stop:	$local_fs $remote_fs $syslog
+# Should-Start:		
+# Should-Stop:		
+# Default-Start:	2 3 5
+# Default-Stop:		0 1 6
+# Short-Description:	start and stop the oom score daemon
+# Description:		Service to automatically set oom_score_adj for processes on a system
+### END INIT INFO
+
+#FIXME: This is pretty ugly. How do we want to locate the script?
+prefix=/usr;exec_prefix=/usr;sbindir=/usr/sbin
+OOMSCORED_BIN=$sbindir/oomscoreadj.py
+OOMSCORED_CONF=/etc/oomrules.conf
+
+# Sanity checks
+[ -x $OOMSCORED_BIN ] || exit 1
+
+. /lib/lsb/init-functions
+
+# Read in configuration options.
+LOG_FILE=""
+if [ -f "/etc/sysconfig/oomscored" ] ; then
+	. /etc/sysconfig/oomscored
+	OPTIONS="$OOMSCORED_OPTIONS"
+else
+	OPTIONS=""
+fi
+
+# For convenience
+processname=oomscoreadj.py
+servicename=oomscored
+pidfile=/var/run/oomscored.pid
+
+start()
+{
+	if [ -f "$pidfile" ]; then
+		pid=$(pgrep -f -F $pidfile 'python.*'"$OOMSCORED_BIN")
+		if [ $? -ne 1 ]; then
+			log_warning_msg "Removing stale lock file $pidfile"
+			rm -f "$pidfile"
+		else
+			log_failure_msg "$servicename is already running with PID `cat ${pidfile}`"
+			return 1
+		fi
+	fi
+
+	startproc -l $LOG_FILE -p $pidfile /usr/bin/python $OOMSCORED_BIN $OPTIONS
+	retval=$?
+	if [ $retval -ne 0 ]; then
+		return 7
+	fi
+
+	pid=$(pgrep -f 'python.*'"$OOMSCORED_BIN")
+	echo $pid > $pidfile
+	return 0
+}
+
+stop()
+{
+	if [ ! -f $pidfile ]; then
+		log_success_msg
+		return 0
+	fi
+	pkill -TERM -f -F $pidfile 'python.*'"$OOMSCORED_BIN"
+	retval=$?
+	if [ $retval -ne 0 ]; then
+		return 1
+	fi
+	rm -f "$pidfile"
+	return 0
+}
+
+RETVAL=0
+
+# See how we are called
+case "$1" in
+	start)
+		echo -n "Starting OOM Score Daemon"
+		start
+		RETVAL=$?
+		rc_status -v
+		;;
+	stop)
+		echo -n "Stopping OOM Score Daemon"
+		stop
+		RETVAL=$?
+		rc_status -v
+		;;
+	status)
+		echo -n "Checking for OOM Score Daemon"
+		RETVAL=1
+		if [ -f "$pidfile" ]; then
+		    pid=$(pgrep -f -F $pidfile 'python.*'"$OOMSCORED_BIN")
+		    RETVAL=$?
+		fi
+		if [ $RETVAL -ne 0 ] ; then
+			rc_failed 3
+			RETVAL=3
+		fi
+		rc_status -v
+		;;
+	restart)
+		stop
+		start
+		RETVAL=$?
+		rc_status
+		;;
+	condrestart)
+		if [ -f "$pidfile" ]; then
+			stop
+			start
+			RETVAL=$?
+		fi
+		rc_status
+		;;
+	reload|flash)
+		if [ -f "$pidfile" ]; then
+			echo -n "Reloading rules configuration..."
+			pkill -SIGUSR1 -f -F $pidfile 'python.*'"$OOMSCORED_BIN"
+		else
+			echo "$servicename is not running."
+			rc_failed 7
+		fi
+		rc_status -v
+		;;
+	*)
+		echo $"Usage: $0 {start|stop|status|restart|condrestart|reload}"
+		RETVAL=2
+		;;
+esac
+
+exit $RETVAL

@@ -1,0 +1,38 @@
+diff --git a/bin/pec_listener.py b/bin/pec_listener.py
+index 4bae087..e64a218 100755
+--- a/bin/pec_listener.py
++++ b/bin/pec_listener.py
+@@ -4,7 +4,7 @@ import errno
+ import socket
+ from select import select
+ 
+-import proc_events
++import proc_events as pec
+ from proc_events import netlink
+ from proc_events import connector
+ 
+diff --git a/proc_events/pec.py b/proc_events/pec.py
+index 74133fc..a1df08a 100755
+--- a/proc_events/pec.py
++++ b/proc_events/pec.py
+@@ -33,7 +33,7 @@ process_events = {"PROC_EVENT_NONE": PROC_EVENT_NONE,
+ process_events_rev = dict(zip(process_events.values(),
+                               process_events.keys()))
+ 
+-base_proc_event = struct.Struct("=2IL")
++base_proc_event = struct.Struct("=2IQ")
+ 
+ event_struct_map = {PROC_EVENT_NONE: struct.Struct("=I"),
+                     PROC_EVENT_FORK: struct.Struct("=4I"),
+@@ -101,9 +101,9 @@ def pec_unpack(data):
+     elif event[0] == PROC_EVENT_EXEC:
+         fields += ["process_pid", "process_tgid"]
+     elif event[0] == PROC_EVENT_UID:
+-        fields += ["process_pid", "process_tgid", "ruid", "rgid"]
++        fields += ["process_pid", "process_tgid", "ruid", "euid"]
+     elif event[0] == PROC_EVENT_GID:
+-        fields += ["process_pid", "process_tgid", "euid", "egid"]
++        fields += ["process_pid", "process_tgid", "rgid", "egid"]
+     elif event[0] == PROC_EVENT_SID:
+         fields += ["process_pid", "process_tgid"]
+     elif event[0] == PROC_EVENT_PTRACE:

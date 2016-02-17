@@ -1,0 +1,17 @@
+## Path:	System/Management
+## Description:	OOM Score Daemon configuration
+
+## Type:	string
+## Default:	"/var/log/oomscored"
+#
+# The pathname to the log file for OOM Score Daemon
+#
+LOG_FILE="/var/log/oomscored"
+
+## Type:	string
+## Default:	""
+#
+# Options to pass directly to the oomscoreadj process
+# Currently there are no options available
+#
+OOMSCORED_OPTIONS=""
